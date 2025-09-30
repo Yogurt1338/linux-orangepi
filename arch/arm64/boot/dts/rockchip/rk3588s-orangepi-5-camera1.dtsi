@@ -5,11 +5,11 @@
  */
 
 &csi2_dphy0_hw {
-	status = "disabled";
+	status = "okay";
 };
 
 &csi2_dphy0 {
-	status = "disabled";
+	status = "okay";
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -26,7 +26,7 @@
 
 			mipi_in_ucam1: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&ov13855_out2>;
+				remote-endpoint = <&og02b10_out2>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -78,34 +78,41 @@
 		};
 	};
 
-	dw9714_p1: dw9714-p1@c {
-		compatible = "dongwoon,dw9714";
-		status = "disabled";
-		reg = <0x0c>;
-		rockchip,camera-module-index = <0>;
-		rockchip,vcm-start-current = <10>;
-		rockchip,vcm-rated-current = <85>;
-		rockchip,vcm-step-mode = <5>;
-		rockchip,camera-module-facing = "back";
-	};
+	// dw9714_p1: dw9714-p1@c {
+	// 	compatible = "dongwoon,dw9714";
+	// 	status = "disabled";
+	// 	reg = <0x0c>;
+	// 	rockchip,camera-module-index = <0>;
+	// 	rockchip,vcm-start-current = <10>;
+	// 	rockchip,vcm-rated-current = <85>;
+	// 	rockchip,vcm-step-mode = <5>;
+	// 	rockchip,camera-module-facing = "back";
+	// };
 
-	ov13855_1: ov13855-1@36 {
-		compatible = "ovti,ov13855";
-		status = "disabled";
-		reg = <0x36>;
+	og02b10_1: og02b10-1@60 {
+		compatible = "ovti,og02b10";
+		status = "okay";
+		reg = <0x60>;
+
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
 		clock-names = "xvclk";
-		pinctrl-names = "default";
+		pinctrl-names = "default", "mclk";
 		pinctrl-0 = <&mipim0_camera3_clk>;
-		reset-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
+		pinctrl-1 = <&mipim0_camera3_clk>;
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		orangepi,clkout-enable-index = <0>;
+
+		reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>;
+
+		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "CMK-OT2016-FV1";
+		rockchip,camera-module-name = "CMK-OG02B10-1";
 		rockchip,camera-module-lens-name = "default";
-		lens-focus = <&dw9714_p1>;
+
 		port {
-			ov13855_out2: endpoint {
+			og02b10_out2: endpoint {
 				remote-endpoint = <&mipi_in_ucam1>;
 				data-lanes = <1 2>;
 			};
@@ -114,7 +121,7 @@
 };
 
 &mipi2_csi2 {
-	status = "disabled";
+	status = "okay";
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -140,7 +147,7 @@
 };
 
 &rkcif_mipi_lvds2 {
-	status = "disabled";
+	status = "okay";
 	port {
 		cif_mipi_in2: endpoint {
 			remote-endpoint = <&mipi2_csi2_output>;
@@ -149,7 +156,7 @@
 };
 
 &rkcif_mipi_lvds2_sditf {
-	status = "disabled";
+	status = "okay";
 	port {
 		mipi2_lvds_sditf: endpoint {
 			remote-endpoint = <&isp0_vir1>;
@@ -158,7 +165,7 @@
 };
 
 &rkisp0_vir1 {
-	status = "disabled";
+	status = "okay";
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;
