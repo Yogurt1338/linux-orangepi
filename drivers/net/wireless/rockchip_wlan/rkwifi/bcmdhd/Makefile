@@ -496,6 +496,7 @@ BCMDHD_ROOT = $(src)
 EXTRA_CFLAGS = $(DHDCFLAGS)
 EXTRA_CFLAGS += -DDHD_COMPILED=\"$(BCMDHD_ROOT)\"
 EXTRA_CFLAGS += -I$(BCMDHD_ROOT)/include/ -I$(BCMDHD_ROOT)/
+EXTRA_CFLAGS += -I$(srctree)/drivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/include/ -I$(srctree)/drivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/
 ifeq ($(CONFIG_AP6XXX),m)
 EXTRA_LDFLAGS += --strip-debug
 endif
