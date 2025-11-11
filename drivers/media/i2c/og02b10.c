@@ -32,7 +32,17 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <linux/gpio.h>
 
-#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x00)
+#ifndef V4L2_MBUS_CSI2_CHANNEL_0
+#define V4L2_MBUS_CSI2_CHANNEL_0	0
+#endif
+#ifndef V4L2_MBUS_CSI2_CHANNEL_1
+#define V4L2_MBUS_CSI2_CHANNEL_1	1
+#endif
+#ifndef V4L2_MBUS_CSI2_CONTINUOUS_CLOCK
+#define V4L2_MBUS_CSI2_CONTINUOUS_CLOCK	0
+#endif
+
+#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x01)
 
 /* The base for the og driver controls.
  * We reserve 16 controls for this driver.
@@ -469,7 +479,7 @@ static const struct og02b10_mode supported_modes[] = {
 		.vts_def = 0x0b10,
 		.reg_list = og02b10_linear10bit_1600x1200_regs,
 		.hdr_mode = NO_HDR,
-		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.vc[PAD0] = 0,
 	},
 };
 
@@ -587,7 +597,7 @@ og02b10_find_best_fit(struct og02b10 *og02b10, struct v4l2_subdev_format *fmt)
 }
 
 static int og02b10_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct og02b10 *og02b10 = to_og02b10(sd);
@@ -604,7 +614,7 @@ static int og02b10_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&og02b10->mutex);
 		return -ENOTTY;
@@ -636,7 +646,7 @@ static int og02b10_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int og02b10_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *state,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct og02b10 *og02b10 = to_og02b10(sd);
@@ -646,7 +656,7 @@ static int og02b10_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		v4l2_info(sd, "get format try.\n");
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_get_try_format(sd, state, fmt->pad);
 #else
 		mutex_unlock(&og02b10->mutex);
 		return -ENOTTY;
@@ -671,7 +681,7 @@ static int og02b10_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int og02b10_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct og02b10 *og02b10 = to_og02b10(sd);
@@ -684,7 +694,7 @@ static int og02b10_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int og02b10_enum_frame_sizes(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct og02b10 *og02b10 = to_og02b10(sd);
@@ -733,7 +743,7 @@ static int og02b10_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 		      V4L2_MBUS_CSI2_CHANNEL_1;
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
-	config->flags = val;
+	config->bus.mipi_csi2.flags = val;
 
 	return 0;
 }
@@ -1035,6 +1045,9 @@ static int __og02b10_power_on(struct og02b10 *og02b10)
 		usleep_range(3000, 5000);
 	}
 
+	/* Wait for sensor to stabilize after power-on */
+	usleep_range(10000, 20000);
+
 	return ret;
 }
 
@@ -1084,7 +1097,7 @@ static int og02b10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct og02b10 *og02b10 = to_og02b10(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
 	const struct og02b10_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&og02b10->mutex);
@@ -1102,7 +1115,7 @@ static int og02b10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 #endif
 
 static int og02b10_enum_frame_interval(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_state *state,
 				       struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct og02b10 *og02b10 = to_og02b10(sd);
@@ -1511,26 +1524,50 @@ static int og02b10_check_sensor_id(struct og02b10 *og02b10,
 	u8 id0 = 0, id1 = 0, id2 = 0;
 	int ret;
 
+	/* Perform software reset to ensure sensor is in known state */
+	ret = og02b10_write_reg(client, OG02B10_REG_SOFTWARE_RESET,
+				 OG02B10_SOFTWARE_RESET_VAL);
+	if (ret < 0) {
+		dev_warn(dev, "Software reset failed, ret(%d)\n", ret);
+	}
+	/* Wait for sensor to stabilize after reset */
+	usleep_range(5000, 10000);
+
 	ret = og02b10_read_reg(client, OG02B10_REG_SC_SCCB_ID0, &id0);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read SCCB ID0 register, ret(%d)\n", ret);
+		return ret;
+	}
 	if (id0 != OG02B10_CHIP_ID0) {
-		dev_err(dev, "Unexpected sensor SCCB ID: id0(%06x), ret(%d)\n", id0, ret);
+		dev_err(dev, "Unexpected sensor SCCB ID: id0(0x%02x), expected(0x%02x), ret(%d)\n",
+			id0, OG02B10_CHIP_ID0, ret);
 		return -ENODEV;
 	}
 
 	ret = og02b10_read_reg(client, OG02B10_REG_SC_SCCB_ID1, &id1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read SCCB ID1 register, ret(%d)\n", ret);
+		return ret;
+	}
 	if (id1 != OG02B10_CHIP_ID1) {
-		dev_err(dev, "Unexpected sensor SCCB ID: id1(%06x), ret(%d)\n", id0, ret);
+		dev_err(dev, "Unexpected sensor SCCB ID: id1(0x%02x), expected(0x%02x), ret(%d)\n",
+			id1, OG02B10_CHIP_ID1, ret);
 		return -ENODEV;
 	}
 
 	ret = og02b10_read_reg(client, OG02B10_REG_SC_SCCB_ID2, &id2);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read SCCB ID2 register, ret(%d)\n", ret);
+		return ret;
+	}
 	if (id2 != OG02B10_CHIP_ID2) {
-		dev_err(dev, "Unexpected sensor SCCB ID: id2(%06x), ret(%d)\n", id0, ret);
+		dev_err(dev, "Unexpected sensor SCCB ID: id2(0x%02x), expected(0x%02x), ret(%d)\n",
+			id2, OG02B10_CHIP_ID2, ret);
 		return -ENODEV;
 	}
 
 	dev_info(dev,
-		 "Detected OG02B10 sensor success, id0(%06x), id1(%06x), id2(%06x).\n",
+		 "Detected OG02B10 sensor success, id0(0x%02x), id1(0x%02x), id2(0x%02x).\n",
 		 id0, id1, id2);
 	return 0;
 }
@@ -1682,7 +1719,7 @@ static int og02b10_probe(struct i2c_client *client,
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
 		 og02b10->module_index, facing,
 		 OG02B10_NAME, dev_name(sd->dev));
-	ret = v4l2_async_register_subdev_sensor_common(sd);
+	ret = v4l2_async_register_subdev_sensor(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1709,7 +1746,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int og02b10_remove(struct i2c_client *client)
+static void og02b10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct og02b10 *og02b10 = to_og02b10(sd);
@@ -1725,8 +1762,6 @@ static int og02b10_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		__og02b10_power_off(og02b10);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
